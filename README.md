@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Auto Blog System
+
+AI研究開発ブログを自動生成・公開するシステム。5つのAIエージェントが連携してブログ記事を企画から SEO 最適化まで自動処理し、Next.js で構築されたブログ UI に表示します。
+
+**Live:** [auto-blog-system.vercel.app](https://auto-blog-system.vercel.app)
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                Agent Pipeline                    │
+│                                                  │
+│  Topic ─→ 企画 ─→ 執筆 ─→ 編集 ─→ 構成 ─→ SEO  │
+│            │                              │      │
+│            └──────────────────────────────→│      │
+│                                    content/blogs/ │
+└─────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────┐
+│              Next.js Blog UI                     │
+│                                                  │
+│  /blogs          → カード一覧 + 検索 + フィルター │
+│  /blogs/[slug]   → 個別記事ページ (Markdown)     │
+└─────────────────────────────────────────────────┘
+        │
+        ▼
+   Vercel (Production)
+```
+
+## Agent Team
+
+| Agent | 役割 | 入力 → 出力 |
+|-------|------|-------------|
+| Planning (企画) | トピックから記事構成を企画 | トピック → BlogOutline |
+| Writer (執筆) | 約3000文字の日本語本文を執筆 | BlogOutline → BlogDraft |
+| Editor (編集) | 品質・正確性・自然さを校正 | BlogDraft → EditedBlog |
+| Structure (構成) | 見出し・セクション構造を整理 | EditedBlog → StructuredBlog |
+| SEO (SEO処理) | title, description, tags, slug 最適化 | StructuredBlog → FinalBlog |
+
+各エージェントは Anthropic SDK (`@anthropic-ai/sdk`) を使用し、`BaseAgent` 抽象クラスを継承しています。
+
+## Tech Stack
+
+- **Frontend:** Next.js 16 (App Router) / TypeScript / Tailwind CSS v4
+- **Markdown:** gray-matter + unified (remark/rehype)
+- **Agent:** Anthropic SDK (Claude)
+- **Deploy:** Vercel (SSG)
+- **CI/CD:** GitHub Actions + Vercel Git Integration
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install
+npm install
+
+# Dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
+
+# Build
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Blog Generation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# .env.local に API キーを設定
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env.local
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# デフォルトトピックで生成
+npm run generate
 
-## Learn More
+# カスタムトピックで生成
+npm run generate -- "量子コンピューティングとAIの融合"
+```
 
-To learn more about Next.js, take a look at the following resources:
+生成された記事は `content/blogs/{date}-{slug}.md` に保存され、Next.js が自動的に読み込みます。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+├── agents/                 # Agent Team
+│   ├── agents/             #   5つのエージェント実装
+│   ├── prompts/            #   各エージェントのプロンプト
+│   ├── utils/              #   ファイル書き出し・slug生成
+│   ├── pipeline.ts         #   パイプラインオーケストレーター
+│   └── runner.ts           #   CLI エントリポイント
+├── content/blogs/          # Markdown ブログ記事
+├── src/
+│   ├── app/blogs/          # ブログページ (一覧・個別)
+│   ├── components/         # UI コンポーネント
+│   └── lib/                # データ取得・Markdown処理
+└── .github/workflows/      # CI/CD
+```
 
-## Deploy on Vercel
+## Blog Categories
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`研究動向` · `技術解説` · `論文レビュー` · `開発ツール` · `業界動向` · `チュートリアル`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploy
+
+GitHub の `main` ブランチに push すると Vercel が自動デプロイします。PR には Preview デプロイが作成されます。
+
+## License
+
+MIT
